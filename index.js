@@ -38,7 +38,7 @@ agent.intent('Default Welcome Intent', (conv) => {
   }));
 });
 
-agent.intent('actions.intent.PERMISSION', (conv, params, permissionGranted) => {
+agent.intent('actions_intent_PERMISSION', (conv, params, permissionGranted) => {
   if (!permissionGranted) {
     conv.close(`Sorry, I can't look up buses near you then`);
   } else {
@@ -49,14 +49,16 @@ agent.intent('actions.intent.PERMISSION', (conv, params, permissionGranted) => {
       qs: propertiesObject,
       json: true,
     };
-    request(options).then(function (response) {
+    return request(options).then(function (response) {
       conv.data.routes = response.routes;
       const routes = buildStringFromList(conv.data.routes, function (item) {
         return item.short_name + ' ' + item.long_name;
       });
-      conv.ask(`Which route would you like? Your choices are ${routes}`);
+      conv.add(`Which route would you like? Your choices are ${routes}`);
+      return Promise.resolve();
     }).catch(function (err) {
-      conv.close(`Sorry, lookup failed`);
+      conv.add(`Sorry, lookup failed`);
+      return Promise.resolve();
     });
   }
 });
