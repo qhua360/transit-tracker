@@ -38,7 +38,7 @@ agent.intent('Default Welcome Intent', (conv) => {
   }));
 });
 
-agent.intent('actions_intent_PERMISSION', (conv, params, permissionGranted) => {
+agent.intent('actions.intent.PERMISSION', (conv, params, permissionGranted) => {
   if (!permissionGranted) {
     conv.close(`Sorry, I can't look up buses near you then`);
   } else {
