@@ -1,12 +1,8 @@
 'use strict';
 
 var express = require('express');
-<<<<<<< HEAD
-const { dialogflow } = require('actions-on-google');
-=======
 const {dialogflow, Permission} = require('actions-on-google');
 const request = require('request-promise');
->>>>>>> parent of 79899c7... Refactoring
 
 const PORT = process.env.PORT || 5000;
 
@@ -32,12 +28,7 @@ const buildStringFromList = function(list, format) {
 };
 
 app.post('/', function (req, res) {
-<<<<<<< HEAD
-  const actionMap = new Map();
   const agent = dialogflow({ request: req, response: res });
-=======
-  const agent = dialogflow({reques: req, response: res });
->>>>>>> parent of 79899c7... Refactoring
 
   agent.intent('Default Welcome Intent', (conv) => {
     conv.ask(new Permission({
