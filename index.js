@@ -29,10 +29,7 @@ const buildStringFromList = function (list, format) {
   return str;
 };
 
-const agent = dialogflow({
-  request: req,
-  response: res
-});
+const agent = dialogflow();
 
 agent.intent('Default Welcome Intent', (conv) => {
   conv.ask(new Permission({
