@@ -1,7 +1,7 @@
 'use strict';
 
 var express = require('express');
-const dialogflow = require('actions-on-google');
+const { DialogflowApp } = require('actions-on-google');
 
 const PORT = process.env.PORT || 5000;
 
@@ -16,7 +16,7 @@ const directionHandler = require('./handlers/directionHandler');
 
 app.post('/', function (req, res) {
   const actionMap = new Map();
-  const agent = dialogflow({reques: req, response: res });
+  const agent = new DialogflowApp({request: req, response: res });
 
   actionMap.set(constants.WELCOME_ACTION, welcomeHandler.welcomeIntent);
   actionMap.set(constants.PERMISSION_ACTION, permissionHandler.permissionIntent);
