@@ -1,12 +1,11 @@
 'use strict';
 
-var express = require('express');
+const express = require('express');
+const bodyParser = require('body-parser');
 const {dialogflow, Permission} = require('actions-on-google');
 const request = require('request-promise');
 
 const PORT = process.env.PORT || 5000;
-
-var app = express();
 
 const transit = 'https://public.transitapp.com/v3/routes/nearby';
 let propertiesObject = {
@@ -90,4 +89,4 @@ app.post('/', function (req, res) {
   });
 });
 
-app.listen(PORT, () => console.log(`App listening on port ${PORT}!`))
+express().use(bodyParser.json(), agent).listen(PORT, () => console.log(`App listening on port ${PORT}!`))
