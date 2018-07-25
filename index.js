@@ -18,14 +18,16 @@ let propertiesObject = {
 
 const buildStringFromList = function (list, format) {
   let str = '';
-  list.foreach(function (item, i) {
-    if (list.length > 1 && i == list.length - 1) str += 'and ';
-    str += format(item);
-    if (i != list.length - 1) {
-      if (list.length > 1) str += ',';
-      routes += ' ';
-    }
-  });
+  if (list.length) {
+    list.forEach(function (item, i) {
+      if (list.length > 1 && i == list.length - 1) str += 'and ';
+      str += format(item);
+      if (i != list.length - 1) {
+        if (list.length > 1) str += ',';
+        str += ' ';
+      }
+    });
+  }
   return str;
 };
 
@@ -47,18 +49,27 @@ agent.intent('actions_intent_PERMISSION', (conv, params, permissionGranted) => {
     const options = {
       uri: transit,
       qs: propertiesObject,
+      headers: {
+        'User-Agent': 'Request-Promise'
+      },
       json: true,
     };
     return request(options).then(function (response) {
       conv.data.routes = response.routes;
-      const routes = buildStringFromList(conv.data.routes, function (item) {
-        return item.short_name + ' ' + item.long_name;
-      });
-      conv.add(`Which route would you like? Your choices are ${routes}`);
-      return Promise.resolve();
+      if (conv.data.routes.length) {
+        const routes = buildStringFromList(conv.data.routes, function (item) {
+          return item.short_name + ' ' + item.long_name;
+        });
+        conv.ask(`Which route would you like? Your choices are ${routes}.`);
+        Promise.resolve();
+      } else {
+        conv.close(`There are no routes near you.`);
+        Promise.resolve();
+      }
     }).catch(function (err) {
-      conv.add(`Sorry, lookup failed`);
-      return Promise.resolve();
+      console.log(err);
+      conv.close(`Sorry, lookup failed.`);
+      Promise.resolve();
     });
   }
 });
@@ -66,9 +77,9 @@ agent.intent('actions_intent_PERMISSION', (conv, params, permissionGranted) => {
 agent.intent('route chosen', (conv, {
   number
 }) => {
+  let found = false;
   conv.data.routes.forEach(function (route, i) {
-    if (number && number == route.short_name ||
-      address && address == route.long_name) {
+    if (number && number == route.short_name) {
       conv.data.chosenRoute = route;
       const directions = buildStringFromList(conv.data.chosenRoute.directions,
         function (item) {
@@ -77,10 +88,11 @@ agent.intent('route chosen', (conv, {
             item.schedule_items[0].headsign ?
             item.schedule_items[0].headsign : '';
         });
-      conv.ask(`Which direction would you like to know about? Your choices are ${directions}`);
+      conv.ask(`Which direction would you like to know about? Your choices are ${directions}.`);
+      found = true;
     }
   });
-  conv.close(`Sorry, lookup failed`);
+  if (!found) conv.close(`Sorry, lookup failed.`);
 });
 
 agent.intent('direction chosen', (conv, {
@@ -90,10 +102,14 @@ agent.intent('direction chosen', (conv, {
     if (direction.schedule_items &&
       direction.schedule_items[0] &&
       address == direction.schedule_items[0].headsign) {
-      conv.close(`Your bus leaves from ${direction.closest_stop.name}` +
-        ` at ${direction.schedule_items[0].departure_time}`);
-    }
-  });
+        let date = new Date(direction.schedule_items[0].departure_time);
+        let now = new Date();
+        const dayMs = 1000 * 60 * 60 * 24, hMs = 1000 * 60 * 60, minMs = 1000 * 60;
+        let diff = Math.floor((((date - now) % dayMs) % hMs) / minMs);
+        conv.close(`Your bus leaves from ${direction.closest_stop.name} in ${diff} minutes.`);
+        return;
+      }
+    });
 });
 
 express().use(bodyParser.json(), agent).listen(PORT, () => console.log(`App listening on port ${PORT}!`))
