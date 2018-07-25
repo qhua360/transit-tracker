@@ -16,7 +16,7 @@ const directionHandler = require('./handlers/directionHandler');
 
 app.post('/', function (req, res) {
   const actionMap = new Map();
-  const agent = new DialogflowApp({request: req, response: res });
+  const agent = new DialogflowApp({ request: req, response: res });
 
   actionMap.set(constants.WELCOME_ACTION, welcomeHandler.welcomeIntent);
   actionMap.set(constants.PERMISSION_ACTION, permissionHandler.permissionIntent);
