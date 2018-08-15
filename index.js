@@ -74,9 +74,7 @@ agent.intent('actions_intent_PERMISSION', (conv, params, permissionGranted) => {
   }
 });
 
-agent.intent('route chosen', (conv, {
-  number
-}) => {
+agent.intent('route chosen', (conv, { number }) => {
   let found = false;
   conv.data.routes.forEach(function (route, i) {
     if (number && number == route.short_name) {
@@ -95,21 +93,22 @@ agent.intent('route chosen', (conv, {
   if (!found) conv.close(`Sorry, lookup failed.`);
 });
 
-agent.intent('direction chosen', (conv, {
-  address
-}) => {
+agent.intent('direction chosen', (conv, { any }) => {
+  let found = false;
   conv.data.chosenRoute.directions.forEach(function (direction, i) {
-    if (direction.schedule_items &&
+    if (!found &&
+      direction.schedule_items &&
       direction.schedule_items[0] &&
-      address == direction.schedule_items[0].headsign) {
+      any == direction.schedule_items[0].headsign) {
         let date = new Date(direction.schedule_items[0].departure_time);
         let now = new Date();
         const dayMs = 1000 * 60 * 60 * 24, hMs = 1000 * 60 * 60, minMs = 1000 * 60;
         let diff = Math.floor((((date - now) % dayMs) % hMs) / minMs);
         conv.close(`Your bus leaves from ${direction.closest_stop.name} in ${diff} minutes.`);
-        return;
+        found = true;
       }
     });
+    if (!found) conv.close(`Sorry, you didn't give a valid direction.`);
 });
 
 express().use(bodyParser.json(), agent).listen(PORT, () => console.log(`App listening on port ${PORT}!`))
