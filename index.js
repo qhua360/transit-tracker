@@ -4,7 +4,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const {
   dialogflow,
-  Permission
+  Permission,
+  Confirmation
 } = require('actions-on-google');
 const request = require('request-promise');
 
@@ -16,7 +17,7 @@ let propertiesObject = {
   distance: '500',
 };
 
-const buildStringFromList = function (list, format) {
+const buildStringFromList = (list, format) => {
   let str = '';
   if (list.length) {
     list.forEach(function (item, i) {
@@ -30,6 +31,14 @@ const buildStringFromList = function (list, format) {
   }
   return str;
 };
+
+const getDiffFromTimeString = str => {
+  let date = new Date(str);
+  let now = new Date();
+  const dayMs = 1000 * 60 * 60 * 24, hMs = 1000 * 60 * 60, minMs = 1000 * 60;
+  const hm = Math.floor(((date - now) % dayMs) / hMs);
+  return Math.floor((((date - now) % dayMs) % hMs) / minMs) + (hm ? hm * 60 : 0);
+}
 
 const agent = dialogflow();
 
@@ -78,8 +87,9 @@ agent.intent('route chosen', (conv, { number }) => {
   let found = false;
   conv.data.routes.forEach(function (route, i) {
     if (number && number == route.short_name) {
-      conv.data.chosenRoute = route;
-      const directions = buildStringFromList(conv.data.chosenRoute.directions,
+      conv.data.chosenRoute = number;
+      conv.data.routeInfo = route;
+      const directions = buildStringFromList(conv.data.routeInfo.directions,
         function (item) {
           return item.schedule_items &&
             item.schedule_items[0] &&
@@ -90,25 +100,58 @@ agent.intent('route chosen', (conv, { number }) => {
       found = true;
     }
   });
-  if (!found) conv.close(`Sorry, lookup failed.`);
+  if (!found) conv.close(`Sorry, you didn't give a valid bus.`);
 });
 
 agent.intent('direction chosen', (conv, { any }) => {
   let found = false;
-  conv.data.chosenRoute.directions.forEach(function (direction, i) {
+  conv.data.routeInfo.directions.forEach((direction, i) => {
     if (!found &&
       direction.schedule_items &&
       direction.schedule_items[0] &&
       any == direction.schedule_items[0].headsign) {
-        let date = new Date(direction.schedule_items[0].departure_time);
-        let now = new Date();
-        const dayMs = 1000 * 60 * 60 * 24, hMs = 1000 * 60 * 60, minMs = 1000 * 60;
-        let diff = Math.floor((((date - now) % dayMs) % hMs) / minMs);
-        conv.close(`Your bus leaves from ${direction.closest_stop.name} in ${diff} minutes.`);
+        conv.data.chosenDirection = any;
+        const diff = getDiffFromTimeString(direction.schedule_items[0].departure_time);
+        conv.ask(`Your bus leaves from ${direction.closest_stop.name} in ${diff} minutes. Would you like to hear about the next ones?`);
+        conv.data.i = i;
         found = true;
       }
     });
     if (!found) conv.close(`Sorry, you didn't give a valid direction.`);
 });
 
-express().use(bodyParser.json(), agent).listen(PORT, () => console.log(`App listening on port ${PORT}!`))
+const savePhrase = 'Would you like to save this route as your favorite in the future?';
+
+agent.intent('direction chosen - yes', (conv) => {
+  if (conv.data.routeInfo.directions[conv.data.i].schedule_items.length === 1) conv.ask(`There are no other buses`);
+  else {
+    const buses = buildStringFromList(conv.data.routeInfo.directions[conv.data.i].schedule_items.slice(0),
+                                      item => {
+                                        return getDiffFromTimeString(item.departure_time);
+                                      });
+    conv.ask(`The next buses arrive in ${buses} minutes. ${savePhrase}`);
+  }
+});
+
+agent.intent('direction chosen - yes - yes', (conv) => {
+  conv.ask(new Confirmation('Confirm saving ' + conv.data.chosenRoute + ' to ' + conv.data.chosenDirection + ' as your favorite?'));
+});
+
+agent.intent('direction chosen - yes - no', (conv) => {
+  conv.close(`Have a nice day!`);
+});
+
+agent.intent('direction chosen - no', (conv) => {
+  conv.ask(new Confirmation(savePhrase));
+});
+
+agent.intent('actions_intent_CONFIRMATION', (conv, params, confirmationGranted) => {
+  if (confirmationGranted) {
+    conv.user.storage.chosenRoute = conv.data.chosenRoute;
+    conv.user.storage.chosenDirection = conv.data.chosenDirection;
+  }
+  conv.close(`Have a nice day!`);
+});
+
+
+express().use(bodyParser.json(), agent).listen(PORT, () => console.log(`App listening on port ${PORT}!`));
